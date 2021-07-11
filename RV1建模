@@ -1,0 +1,135 @@
+#（1）高频数据时间序列的建立
+setwd("C:/Users/62678/Desktop") 
+M2005.5min=read.csv("M2005.5min.csv")
+require("xts")
+M2005.5min.zoo=read.zoo("M2005.5min.csv",header=TRUE,sep=",")
+M2005.5min.xts=as.xts(M2005.5min.zoo)      #得到时间序列
+require("highfrequency")
+M2005.5min_rtrn=makeReturns(M2005.5min.xts)
+M2005.5min_RV=rCov(M2005.5min.xts,makeReturns=T)      #计算RV（这个RV=sum(r^2))
+setwd("C:/Users/62678/Desktop") 
+M2005.d=read.csv("M2005.d.csv")
+require("xts")
+M2005.d.zoo=read.zoo("M2005.d.csv",header=TRUE,sep=",")
+M2005.d.xts=as.xts(M2005.d.zoo)  #得到时间序列
+M2005.r<-diff(log(M2005.d.xts))   #计算日收益率
+M2005.r[1]=0
+W=sum((M2005.r-mean(M2005.r))^2)/sum(M2005.5min_RV)      #计算参数W
+M2005.5min_RV1=W*M2005.5min_RV      #得到改进的RV1
+
+#（2）对r进行平稳性检验
+setwd("C:/Users/62678/Desktop") 
+M2005.d=read.csv("M2005.d.csv")
+RVn1=as.numeric(M2005.5min_RV1)
+M2005.d$close=RVn1
+library(highfrequency)
+RV1=as.data.frame(M2005.d) 
+View(RV)
+d1=as.Date(RV1[,1])            #将第一列转为date数据类型
+d2=as.numeric(RV1[,2])
+gm1=RV1[,2,drop=FALSE]  
+View(gm1)
+rownames(gm1)=d1 
+library(xts)
+RV1=as.xts(gm1)
+RV1n=RV1
+
+library(timeSeries)
+plot(RV1)      #画RV的时序图,看是否有集群现象
+
+         
+qqnorm(RV1)
+qqline(RV1)     #QQ图
+plot(density(RV1),col="blue")   #核密度图
+
+library(fBasics)
+basicStats(RV1)   #峰度
+
+library(tseries)
+plot(RV1)       #画RV1的时序图,看是否有集群现象
+
+
+adf.test(RV1)         #ADF检验RV1平稳性
+
+for(i in 1:6){
+print(Box.test(RV1,type="Ljung-Box",lag=i))
+}	 #检验RV1是否为白噪声
+
+acf(RV1)    #绘RV1时间序列自相关图#
+pacf(RV1)  #绘RV1时间序列偏自相关图#
+
+#(3)建立ARIMA模型
+library(forecast)
+auto.arima(RV1)
+ARIMA=arima(RV1,order=c(1,0,1))
+summary(ARIMA)
+
+#(4)残差序列
+for(i in 1:6){
+print(Box.test(ARIMA$residual,type="Ljung-Box",lag=i))
+}  #对残差序列进行延迟1-6阶白噪声检验#
+
+
+#（5）检验ARCH效应
+for(i in 1:6){
+print(Box.test(ARIMA$residual^2,type="Ljung-Box",lag=i))
+}	#ARCH效应检验
+for(i in 1:6)print(ArchTest(ARIMA$residual^2,lag=i))	#检验是否存在异方差#
+
+#（6）建立HAR模型
+real.RV1=RV1[147:218]
+for(i in 1:72) {
+data_temp <- RV1[(i):(145+i)]                 #i到145+i 总是146个数
+HARRV<-harModel(data=data_temp,periods=c(1,5,22),RVest=c("rCov"),type="HARRV",h=1)      #模型拟合 
+forc=predict(HARRV)   #向前一阶预测         
+RV1n[146+i]=forc[1]}
+
+forest.RV1=RV1n[147:218]  #得出预测的序列
+library(tseries)
+plot(as.ts(forest.RV1),type="l",col="red",main="HAR-RV1",xlab="Time",ylab="RV1",lwd=2)
+lines(as.ts(real.RV1),type="l",col="black",lwd=2)
+legend("topright",legend=c("forest.RV1","real.RV1"),col=c("red","black"),lty=1,lwd=2)  
+
+#seqplot.ts(as.ts(forest.RV1),as.ts(real.RV1))         #画出对比图
+
+MSE=mean((real.RV1-forest.RV1)^2)
+MAE=mean(abs(real.RV1-forest.RV1))
+RMSE=sqrt(MSE)
+MAPE=mean(abs((forest.RV1-real.RV1)/real.RV1))*100
+SMAPE=mean(abs(forest.RV1-real.RV1)/(abs(forest.RV1)+abs(real.RV1)/2))*100
+HMSE=mean((1-forest.RV1/real.RV1)^2)
+HMAE=mean(abs(1-forest.RV1/real.RV1))
+QLIKE=mean(log(forest.RV1)+real.RV1/forest.RV1)
+RLOG=mean((log(real.RV1/forest.RV1))^2)
+MSE
+MAE
+RMSE
+MAPE
+SMAPE
+HMSE
+HMAE
+QLIKE
+RLOG
+
+#（7）建立ARFIMA模型
+real.RV1=RV1[147:218]
+for(i in 1:72) {
+data_temp <- RV1[(i):(145+i)]                 #i到145+i 总是146个数
+ARFIMA1=arfima(as.timeSeries(data_temp))      #模型拟合
+forc=forecast(ARFIMA1,h=1)  #向前一阶预测            #模型向前一步预测
+RV1n[146+i]=as.numeric(forc$mean) }
+
+forest.RV1=RV1n[147:218]  #得出预测的序列
+library(tseries)
+seqplot.ts(as.ts(forest.RV1),as.ts(real.RV1))         #画出对比图
+
+MSE=mean((forest.RV1-real.RV1)^2)
+MSE
+MAE=mean(abs(forest.RV1-real.RV1))
+MAE
+RMSE=sqrt(MSE)
+RMSE
+MAPE=mean(abs((forest.RV1-real.RV1)/real.RV1))*100
+MAPE
+SMAPE=mean(abs(forest.RV1-real.RV1)/(abs(forest.RV1)+abs(real.RV1)/2))*100
+SMAPE
