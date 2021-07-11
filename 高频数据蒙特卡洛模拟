@@ -1,0 +1,294 @@
+#（1）HAR-RV
+setwd("C:/Users/62678/Desktop") 
+M2005.5min=read.csv("M2005.5min.csv")
+require("xts")
+M2005.5min.zoo=read.zoo("M2005.5min.csv",header=TRUE,sep=",")
+M2005.5min.xts=as.xts(M2005.5min.zoo)      #得到时间序列
+require("highfrequency")
+M2005.5min_rtrn=makeReturns(M2005.5min.xts)    #计算r等于 diff(log(M2005.5min.xts))
+M2005.5min_RV=rCov(M2005.5min.xts,makeReturns=T)      #计算RV（这个RV=sum(r^2))
+#
+setwd("C:/Users/62678/Desktop") 
+M2005.d=read.csv("M2005.d.csv")
+RVn=as.numeric(M2005.5min_RV)
+M2005.d$close=RVn
+library(highfrequency)
+RV=as.data.frame(M2005.d) 
+
+d1=as.Date(RV[,1])            #将第一列转为date数据类型
+d2=as.numeric(RV[,2])
+gm=RV[,2,drop=FALSE]  
+
+rownames(gm)=d1 
+library(xts)
+RV=as.xts(gm)                     
+                                   #可调
+
+##读入日收益率数据r
+setwd("C:/Users/62678/Desktop") 
+M2005.d=read.csv("M2005.d.csv")
+require("xts")
+M2005.d.zoo=read.zoo("M2005.d.csv",header=TRUE,sep=",")
+M2005.d.xts=as.xts(M2005.d.zoo)  #得到时间序列
+M2005.r<-diff(log(M2005.d.xts))   #计算日收益率
+M2005.r[1]=0
+
+#求gama
+lm(M2005.r~sqrt(RV)+0)               #可调
+
+
+#建立HAR模型，求sigam                           #可调
+data_temp <- RV[(i):(207+i)]                #i从1到10 
+HARRV<-harModel(data=data_temp,periods=c(1,5,22),RVest=c("rCov"),type="HARRV",h=1)      #h从1到10 
+HARRV
+forc=predict(HARRV)   #向前一阶预测         
+forc
+
+#(2)HAR-RV1
+setwd("C:/Users/62678/Desktop") 
+M2005.5min=read.csv("M2005.5min.csv")
+require("xts")
+M2005.5min.zoo=read.zoo("M2005.5min.csv",header=TRUE,sep=",")
+M2005.5min.xts=as.xts(M2005.5min.zoo)      #得到时间序列
+require("highfrequency")
+M2005.5min_rtrn=makeReturns(M2005.5min.xts)
+M2005.5min_RV=rCov(M2005.5min.xts,makeReturns=T)      #计算RV（这个RV=sum(r^2))
+setwd("C:/Users/62678/Desktop") 
+M2005.d=read.csv("M2005.d.csv")
+require("xts")
+M2005.d.zoo=read.zoo("M2005.d.csv",header=TRUE,sep=",")
+M2005.d.xts=as.xts(M2005.d.zoo)  #得到时间序列
+M2005.r<-diff(log(M2005.d.xts))   #计算日收益率
+M2005.r[1]=0
+W=sum((M2005.r-mean(M2005.r))^2)/sum(M2005.5min_RV)      #计算参数W
+M2005.5min_RV1=W*M2005.5min_RV      #得到改进的RV1
+#
+setwd("C:/Users/62678/Desktop") 
+M2005.d=read.csv("M2005.d.csv")
+RVn1=as.numeric(M2005.5min_RV1)
+M2005.d$close=RVn1
+library(highfrequency)
+RV1=as.data.frame(M2005.d) 
+View(RV)
+d1=as.Date(RV1[,1])            #将第一列转为date数据类型
+d2=as.numeric(RV1[,2])
+gm1=RV1[,2,drop=FALSE]  
+View(gm1)
+rownames(gm1)=d1 
+library(xts)
+RV1=as.xts(gm1)
+
+##读入日收益率数据r
+setwd("C:/Users/62678/Desktop") 
+M2005.d=read.csv("M2005.d.csv")
+require("xts")
+M2005.d.zoo=read.zoo("M2005.d.csv",header=TRUE,sep=",")
+M2005.d.xts=as.xts(M2005.d.zoo)  #得到时间序列
+M2005.r<-diff(log(M2005.d.xts))   #计算日收益率
+M2005.r[1]=0
+
+#求gama
+lm(M2005.r~sqrt(RV1)+0)               #可调
+0.06581 
+
+#建立HAR模型，求sigam                           #可调
+data_temp <- RV1[(i):(207+i)]                #i从1到10 
+HARRV<-harModel(data=data_temp,periods=c(1,5,22),RVest=c("rCov"),type="HARRV",h=1)      #h从1到10 
+HARRV
+forc=predict(HARRV)   #向前一阶预测         
+forc
+
+#(3)HAR-RV2
+setwd("C:/Users/62678/Desktop") 
+M2005.5min=read.csv("M2005.5min.csv")
+require("xts")
+M2005.5min.zoo=read.zoo("M2005.5min.csv",header=TRUE,sep=",")
+M2005.5min.xts=as.xts(M2005.5min.zoo)      #得到时间序列
+require("highfrequency")
+M2005.5min_rtrn=makeReturns(M2005.5min.xts)
+M2005.5min_RV=rCov(M2005.5min.xts,makeReturns=T)      #计算RV（这个RV=sum(r^2))
+
+setwd("C:/Users/62678/Desktop") 
+M2005.d=read.csv("M2005.d.csv")
+require("xts")
+M2005.d.zoo=read.zoo("M2005.d.csv",header=TRUE,sep=",")
+M2005.d.xts=as.xts(M2005.d.zoo)  #得到时间序列
+M2005.r<-diff(log(M2005.d.xts))   #计算日收益率
+M2005.r[1]=0
+
+setwd("C:/Users/62678/Desktop") 
+r_g=read.csv("r_g.csv")
+require("xts")
+r_g.zoo=read.zoo("r_g.csv",header=TRUE,sep=",")
+r_g.xts=as.xts(r_g.zoo)  #得到时间序列
+
+setwd("C:/Users/62678/Desktop") 
+M2005.d=read.csv("M2005.d.csv")
+RVn=as.numeric(M2005.5min_RV)
+M2005.d$close=RVn
+library(highfrequency)
+RV=as.data.frame(M2005.d) 
+View(RV)
+d1=as.Date(RV[,1])            #将第一列转为date数据类型
+d2=as.numeric(RV[,2])
+gm=RV[,2,drop=FALSE]  
+View(gm)
+rownames(gm)=d1 
+library(xts)
+RV=as.xts(gm)
+
+RV2=RV+(r_g$r_g)^2     #得到改进的RV2
+
+#求gama
+lm(M2005.r~sqrt(RV2)+0)               #可调
+
+
+#建立HAR模型，求sigam                           #可调
+data_temp <- RV2[(i):(207+i)]                #i从1到10 
+HARRV<-harModel(data=data_temp,periods=c(1,5,22),RVest=c("rCov"),type="HARRV",h=1)      #h从1到10 
+HARRV
+forc=predict(HARRV)   #向前一阶预测         
+forc
+
+
+#(4)HAR-RV蒙特卡洛定价(P)
+S_0 = 2793.0   #可调    
+K = 3200.0        
+T = 10        #可调  
+r = 0.0175/365
+I = 1000 
+RV1= 0.02270266        #可调  
+RV2=0.02237338
+RV3=0.02197747
+RV4=0.02167372
+RV5=0.02135179
+RV6=0.02092588
+RV7=0.0202167
+RV8=0.02046854
+RV9=0.02032215
+RV10=0.02022029
+
+gama=0.00003213573      
+z = rnorm(I)          
+
+S_1 = S_0 * exp(r+(gama-0.5)*RV1+sqrt(RV1)*z)            #可调  
+S_2 = S_1 *  exp(r+(gama-0.5)*RV2+sqrt(RV2)*z) 
+S_3 = S_2 * exp(r+(gama-0.5)*RV3+sqrt(RV3)*z) 
+S_4 = S_3 * exp(r+(gama-0.5)*RV4+sqrt(RV4)*z) 
+S_5 = S_4 * exp(r+(gama-0.5)*RV5+sqrt(RV5)*z) 
+S_6 = S_5 * exp(r+(gama-0.5)*RV6+sqrt(RV6)*z) 
+S_7 = S_6 * exp(r+(gama-0.5)*RV7+sqrt(RV7)*z) 
+S_8 = S_7 * exp(r+(gama-0.5)*RV8+sqrt(RV8)*z) 
+S_9 = S_8 * exp(r+(gama-0.5)*RV9+sqrt(RV9)*z) 
+S_10 = S_9 * exp(r+(gama-0.5)*RV10+sqrt(RV10)*z) 
+zero=rep(0,I)            
+h_T = mapply(max,K-S_10,zero)      #可调
+S_1 = S_0 *exp(r+(gama-0.5)*RV1-sqrt(RV1)*z)            #可调  
+S_2 = S_1 * exp(r+(gama-0.5)*RV2-sqrt(RV2)*z)     
+S_3 = S_2 * exp(r+(gama-0.5)*RV3-sqrt(RV3)*z)     
+S_4 = S_3 * exp(r+(gama-0.5)*RV4-sqrt(RV4)*z)     
+S_5 = S_4 * exp(r+(gama-0.5)*RV5-sqrt(RV5)*z)     
+S_6 = S_5 * exp(r+(gama-0.5)*RV6-sqrt(RV6)*z)     
+S_7 = S_6 * exp(r+(gama-0.5)*RV7-sqrt(RV7)*z)     
+S_8 = S_7 * exp(r+(gama-0.5)*RV8-sqrt(RV8)*z)     
+S_9 = S_8 * exp(r+(gama-0.5)*RV9-sqrt(RV9)*z)     
+S_10 = S_9 * exp(r+(gama-0.5)*RV10-sqrt(RV10)*z)         #可调  
+zero=rep(0,I)
+h_TA = mapply(max,K-S_10,zero)             #可调  
+P = exp(-r * T)* sum((h_T+h_TA )/2)/I
+P        
+
+#(5)HAR-RV蒙特卡洛定价(C)
+S_0 = 2793.0   #可调    
+K = 3200.0        
+T = 10        #可调  
+r = 0.0175/365
+I = 1000 
+RV1= 0.02270266        #可调  
+RV2=0.02237338
+RV3=0.02197747
+RV4=0.02167372
+RV5=0.02135179
+RV6=0.02092588
+RV7=0.0202167
+RV8=0.02046854
+RV9=0.02032215
+RV10=0.02022029
+
+gama=0.00003213573      
+z = rnorm(I)          
+
+S_1 = S_0 * exp(r+(gama-0.5)*RV1+sqrt(RV1)*z)            #可调  
+S_2 = S_1 *  exp(r+(gama-0.5)*RV2+sqrt(RV2)*z) 
+S_3 = S_2 * exp(r+(gama-0.5)*RV3+sqrt(RV3)*z) 
+S_4 = S_3 * exp(r+(gama-0.5)*RV4+sqrt(RV4)*z) 
+S_5 = S_4 * exp(r+(gama-0.5)*RV5+sqrt(RV5)*z) 
+S_6 = S_5 * exp(r+(gama-0.5)*RV6+sqrt(RV6)*z) 
+S_7 = S_6 * exp(r+(gama-0.5)*RV7+sqrt(RV7)*z) 
+S_8 = S_7 * exp(r+(gama-0.5)*RV8+sqrt(RV8)*z) 
+S_9 = S_8 * exp(r+(gama-0.5)*RV9+sqrt(RV9)*z) 
+S_10 = S_9 * exp(r+(gama-0.5)*RV10+sqrt(RV10)*z) 
+
+zero=rep(0,I)            
+h_T = mapply(max,S_10-K,zero)      #可调
+
+S_1 = S_0 *exp(r+(gama-0.5)*RV1-sqrt(RV1)*z)            #可调  
+S_2 = S_1 * exp(r+(gama-0.5)*RV2-sqrt(RV2)*z)     
+S_3 = S_2 * exp(r+(gama-0.5)*RV3-sqrt(RV3)*z)     
+S_4 = S_3 * exp(r+(gama-0.5)*RV4-sqrt(RV4)*z)     
+S_5 = S_4 * exp(r+(gama-0.5)*RV5-sqrt(RV5)*z)     
+S_6 = S_5 * exp(r+(gama-0.5)*RV6-sqrt(RV6)*z)     
+S_7 = S_6 * exp(r+(gama-0.5)*RV7-sqrt(RV7)*z)     
+S_8 = S_7 * exp(r+(gama-0.5)*RV8-sqrt(RV8)*z)     
+S_9 = S_8 * exp(r+(gama-0.5)*RV9-sqrt(RV9)*z)     
+S_10 = S_9 * exp(r+(gama-0.5)*RV10-sqrt(RV10)*z)         #可调  
+zero=rep(0,I)
+h_TA = mapply(max,S_10-K,zero)             #可调  
+C = exp(-r * T)* sum((h_T+h_TA )/2)/I
+C       
+
+
+#对比期权价格
+setwd("C:/Users/62678/Desktop") 
+Cprice=read.csv("Cprice.csv")
+View(Cprice)
+require("xts")
+Cprice.zoo=read.zoo("Cprice.csv",header=TRUE,sep=",")
+Cprice.xts=as.xts(Cprice.zoo)    #得到时间序列
+plot(Cprice$close,type="l",col="black",main="M2005-P-3200",xlab="Time",ylab="Price",lwd=2)
+lines(Cprice$HAR.RV,type="l",col="blue",lwd=2);lines(Cprice$HAR.RV1,type="l",col="red",lwd=2);lines(Cprice$HAR.RV2,type="l",col="green",lwd=2)
+legend("topright",legend=c("price","HAR.RV","HAR.RV1","HAR.RV2"),col=c("black","blue","red","green"),lty=1,lwd=2)      
+
+MSE=mean((Cprice$close-Cprice$HAR.RV1)^2)
+MAE=mean(abs(Cprice$close-Cprice$HAR.RV1))
+RMSE=sqrt(MSE)
+MAPE=mean(abs((Cprice$HAR.RV1-Cprice$close)/Cprice$close))*100
+SMAPE=mean(abs(Cprice$HAR.RV1-Cprice$close)/(abs(Cprice$HAR.RV1)+abs(Cprice$close)/2))*100
+HMSE=mean((1-Cprice$HAR.RV1/Cprice$close)^2)
+HMAE=mean(abs(1-Cprice$HAR.RV1/Cprice$close))
+QLIKE=mean(log(Cprice$HAR.RV1)+Cprice$close/Cprice$HAR.RV1)
+RLOG=mean((log(Cprice$close/Cprice$HAR.RV1))^2)
+MSE
+MAE
+RMSE
+MAPE
+SMAPE
+HMSE
+HMAE
+QLIKE
+RLOG
+
+
+
+
+
+#ARFIMA模型，求sigam
+library(arfima)
+library(forecast)
+library(timeSeries)
+data_temp <- RV[(i):(207+i)]                  #i从1到10 
+ARFIMA=arfima(as.timeSeries(data_temp))      #模型拟合
+ARFIMA
+forc=forecast(ARFIMA,h=T)                       #T从10到1
+forc
+ 
