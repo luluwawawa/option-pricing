@@ -1,0 +1,229 @@
+#（1）读入日收益率数据r
+setwd("C:/Users/62678/Desktop") 
+M2005.d=read.csv("M2005.d.csv")
+require("xts")
+M2005.d.zoo=read.zoo("M2005.d.csv",header=TRUE,sep=",")
+M2005.d.xts=as.xts(M2005.d.zoo)  #得到时间序列
+M2005.r<-diff(log(M2005.d.xts))   #计算日收益率
+r=M2005.r[-1]
+
+#（2）对r进行平稳性检验
+plot(M2005.r)       #画r的时序图,看是否有集群现象
+library(tseries)
+adf.test(r)         #ADF检验r平稳性
+for(i in 1:6){
+print(Box.test(M2005.r,type="Ljung-Box",lag=i))
+}	 #检验r是否为白噪声
+
+
+#（3）检验ARCH效应
+y<-r-mean(r,na.rm=T)
+for(i in 1:6){
+print(Box.test(y^2,type="Ljung-Box",lag=i))
+}	#ARCH效应检验
+
+
+#(4) 建立合适的GARCH
+P=NULL		#定义空变量用于存储p值#
+Q=NULL		#定义空变量用于存储q值#
+AIC=NULL	#定义空变量用于存储aic值#
+for(p in 0:2){
+for(q in 1:2){
+	fit=garch(r,order=c(p,q));
+	aic=AIC(fit);
+	P=c(P,p);
+	Q=c(Q,q);
+	AIC=c(AIC,aic);
+			 }
+		}
+for(p in 1:2){
+fit=garch(r,order=c(p,0));
+aic=AIC(fit);
+P=c(P,p);
+Q=c(Q,0);
+AIC=c(AIC,aic);	
+		}
+
+L=cbind(P,Q,AIC)
+ORDER=order(AIC)
+k=ORDER[1]
+L[k,]		#显示aic最小的行#
+L	#显示全部p,q,aic#
+p=L[k,1]		#将最小aic的p值提取#
+q=L[k,2]		#将最小aic的q值提取#
+fit.garch=garch(r,order=c(p,q))		#建立aic最小模型#
+summary(fit.garch)
+
+library(fBasics)
+basicStats(M2005.r)   #峰度
+
+adf.test(M2005.r)         #ADF检验RV平稳性
+for(i in 1:6){
+print(Box.test(M2005.r,type="Ljung-Box",lag=i))
+}	 #检验RV是否为白噪声
+
+#（5）几种GARCH模型的对比
+library(rugarch)
+ug_spec1<- ugarchspec(variance.model = list(model = "sGARCH", garchOrder = c(1, 1)), 
+                        mean.model = list(armaOrder = c(0, 0)))           #标准GARCH模型，sGARCH模型，且均值模型为白噪声                                            #指定模型sGARCH
+  ugfit1<- ugarchfit(ug_spec1, data = r)                                          #模型拟合
+coef(ugfit1)    #模型估计的系数
+ fit_temp <- ugarchforecast(ugfit1, data = r, n.ahead = 1) 
+
+
+#GARCH模型滚动预测
+real.r=r[146:217]
+for(i in 1:72) {
+  library(rugarch)
+  data_temp <- r[(i):(144+i)]                 #i到144+i 总是145个数
+  ug_spec<- ugarchspec(variance.model = list(model = "sGARCH", garchOrder = c(1, 1)), 
+                        mean.model = list(armaOrder = c(0, 0)))                           #标准GARCH模型，sGARCH模型，且均值模型为白噪声
+  ugfit <- ugarchfit(ug_spec, data = data_temp)                                          #模型拟合
+  fit_temp <- ugarchforecast(ugfit, data = data_temp, n.ahead = 1)            #模型向前一步预测
+  M2005.r[146+i]=fit_temp@forecast[["sigmaFor"]] }
+
+forest.r=M2005.r[147:218];  #得出预测的序列
+library(tseries)
+plot(as.ts(forest.r),type="l",col="red",main="GARCH",xlab="Time",ylab="r",lwd=2)
+lines(as.ts(real.r),type="l",col="black",lwd=2)
+legend("topright",legend=c("forest.r","real.r"),col=c("red","black"),lty=1,lwd=2)                        
+
+#seqplot.ts(as.ts(forest.r),as.ts(real.r),colx="red",coly="black",typex="1",typey="1",ltyx="forest.r",ltyy="real.r",xlab="Time",ylab="r",main="GARCH")         #画出对比图
+
+
+#EGARCH模型滚动预测
+real.r=r[146:217]
+for(i in 1:72) {
+  library(rugarch)
+  data_temp <- r[(i):(144+i)]                 #i到144+i 总是145个数
+  ug_spec<- ugarchspec(variance.model = list(model = "eGARCH", garchOrder = c(1, 1)), 
+                        mean.model = list(armaOrder = c(0, 0)))    # 指数GARCH模型，EGARCH
+  ugfit <- ugarchfit(ug_spec, data = data_temp)                                          #模型拟合
+  fit_temp <- ugarchforecast(ugfit, data = data_temp, n.ahead = 1)            #模型向前一步预测
+ M2005.r[146+i]=fit_temp@forecast[["sigmaFor"]] }
+
+forest.r=M2005.r[147:218];  #得出预测的序列
+library(tseries)
+library(tseries)
+plot(as.ts(forest.r),type="l",col="red",main="EGARCH",xlab="Time",ylab="r",lwd=2)
+lines(as.ts(real.r),type="l",col="black",lwd=2)
+legend("topright",legend=c("forest.r","real.r"),col=c("red","black"),lty=1,lwd=2)  
+
+#seqplot.ts(as.ts(forest.r),as.ts(real.r))         #画出对比图
+
+
+#TGARCH模型滚动预测
+real.r=r[146:217]
+for(i in 1:72) {
+  library(rugarch)
+  data_temp <- r[(i):(144+i)]                 #i到144+i 总是145个数
+  ug_spec<- ugarchspec(variance.model = list(model = "fGARCH", submodel="TGARCH",garchOrder = c(1, 1)), 
+                        mean.model = list(armaOrder = c(0, 0)))     # 门限GARCH模型，TGARCH
+  ugfit <- ugarchfit(ug_spec, data = data_temp)                                          #模型拟合
+  fit_temp <- ugarchforecast(ugfit, data = data_temp, n.ahead = 1)            #模型向前一步预测
+M2005.r[146+i]=fit_temp@forecast[["sigmaFor"]] }
+
+forest.r=M2005.r[147:218];  #得出预测的序列
+
+library(tseries)
+plot(as.ts(forest.r),type="l",col="red",main="TGARCH",xlab="Time",ylab="r",lwd=2)
+lines(as.ts(real.r),type="l",col="black",lwd=2)
+legend("topright",legend=c("forest.r","real.r"),col=c("red","black"),lty=1,lwd=2)  
+
+#seqplot.ts(as.ts(forest.r),as.ts(real.r))         #画出对比图
+
+MSE=mean((real.r-forest.r)^2)
+MAE=mean(abs(real.r-forest.r))
+RMSE=sqrt(MSE)
+MAPE=mean(abs((forest.r-real.r)/real.r))*100
+SMAPE=mean(abs(forest.r-real.r)/(abs(forest.r)+abs(real.r)/2))*100
+HMSE=mean((1-forest.r/real.r)^2)
+HMAE=mean(abs(1-forest.r/real.r))
+QLIKE=mean(log(forest.r)+real.r/forest.r)
+RLOG=mean((log(real.r/forest.r))^2)
+MSE
+MAE
+RMSE
+MAPE
+SMAPE
+HMSE
+HMAE
+QLIKE
+RLOG
+
+
+
+
+
+
+
+
+
+
+ug_spec2 <- ugarchspec(variance.model = list(model = "eGARCH", garchOrder = c(1, 1)), 
+                        mean.model = list(armaOrder = c(0, 0)))    # 指数GARCH模型，EGARCH
+ugfit2<- ugarchfit(ug_spec2, data = r) 
+coef(ugfit2)    #模型估计的系数
+
+ug_spec3 <- ugarchspec(variance.model = list(model = "fGARCH", submodel="TGARCH",garchOrder = c(1, 1)), 
+                        mean.model = list(armaOrder = c(0, 0)))    # 门限GARCH模型，TGARCH
+ugfit3<- ugarchfit(ug_spec3, data = r) 
+coef(ugfit3)    #模型估计的系数
+
+#（6）模型回测
+ug_roll1<-ugarchroll(ug_spec1,r,n.start=50,refit.every=1,refit.window="moving",solver="hybrid",calculate.VaR=TRUE,VaR.alpha=0.01,
+keep.coef=TRUE)      #进行回测
+intc_VaR<-zoo(ug_roll1@forecast$VaR[,1])
+index(intc_VaR)<-as.Date(rownames(ug_roll1@forecast$VaR))
+intc_actual<-zoo(ug_roll1@forecast$VaR[,2])
+index(intc_actual)<-as.Date(rownames(ug_roll1@forecast$VaR))
+plot(intc_actual,type="b",main="99% backtesting",xlab="date",ylab="Return")
+lines(intc_VaR,col="red")  #画出回测的预测值
+legend("topright",inset=0.05,c("actual","VaR"),col=c("black","red"),lty=c(1,1))
+#标准GARCH模型进行回测
+
+ug_roll2<-ugarchroll(ug_spec2,r,n.start=50,refit.every=1,refit.window="moving",solver="hybrid",calculate.VaR=TRUE,VaR.alpha=0.01,
+keep.coef=TRUE)      #进行回测
+intc_VaR<-zoo(ug_roll2@forecast$VaR[,1])
+index(intc_VaR)<-as.Date(rownames(ug_roll2@forecast$VaR))
+intc_actual<-zoo(ug_roll2@forecast$VaR[,2])
+index(intc_actual)<-as.Date(rownames(ug_roll2@forecast$VaR))
+plot(intc_actual,type="b",main="99% backtesting",xlab="date",ylab="Return")
+lines(intc_VaR,col="red")  #画出回测的预测值
+legend("topright",inset=0.05,c("actual","VaR"),col=c("black","red"),lty=c(1,1))
+#EGARCH模型进行回测
+
+ug_roll3<-ugarchroll(ug_spec3,r,n.start=50,refit.every=1,refit.window="moving",solver="hybrid",calculate.VaR=TRUE,VaR.alpha=0.01,
+keep.coef=TRUE)      #进行回测
+intc_VaR<-zoo(ug_roll3@forecast$VaR[,1])
+index(intc_VaR)<-as.Date(rownames(ug_roll3@forecast$VaR))
+intc_actual<-zoo(ug_roll3@forecast$VaR[,2])
+index(intc_actual)<-as.Date(rownames(ug_roll3@forecast$VaR))
+plot(intc_actual,type="b",main="99% backtesting",xlab="date",ylab="Return")
+lines(intc_VaR,col="red")  #画出回测的预测值
+legend("topright",inset=0.05,c("actual","VaR"),col=c("black","red"),lty=c(1,1))
+#TGARCH模型进行回测
+
+
+#（6）模型对比，用MSE来测量模型的预测性能
+MSE.sGARCH=mean(residuals(ugfit1)*residuals( ugfit1))
+MSE.EGARCH=mean(residuals(ugfit2)*residuals(ugfit2))
+MSE.TGARCH=mean(residuals(ugfit3)*residuals(ugfit3))
+MSE.sGARCH
+MSE.EGARCH
+MSE.TGARCH
+
+#（6）预测，画图
+ugfit1<- ugarchfit(ug_spec1, data = r,out.sample=20) 
+fit_temp <- ugarchforecast(ugfit1, n.ahead = 10,n.roll=10)            #模型向前一步预测
+plot(fit_temp,which="all")   #画出预测的时间序列，或者预测的条件波动率
+
+
+#（5）预测，画图
+fit.pred<-predict(fit.garch)	#对拟合期进行预测#
+plot(fit.pred)		#绘制残差拟合期预测图#
+plot(r)		#绘制原始序列残差图#
+lines(fit.pred[,1],col=2)		#绘制残差预测值各点的置信区间上限#
+lines(fit.pred[,2],col=2) 		#绘制残差预测值各点的置信区间下限#
+abline(h=1.96*sd(r),col=4)	#绘制RE序列均值95%置信区间上限#
+abline(h=-1.96*sd(r),col=4)	#绘制RE序列均值95%置信区间下限#
