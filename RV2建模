@@ -1,0 +1,90 @@
+#（1）高频数据时间序列的建立
+setwd("C:/Users/62678/Desktop") 
+M2005.5min=read.csv("M2005.5min.csv")
+require("xts")
+M2005.5min.zoo=read.zoo("M2005.5min.csv",header=TRUE,sep=",")
+M2005.5min.xts=as.xts(M2005.5min.zoo)      #得到时间序列
+require("highfrequency")
+M2005.5min_rtrn=makeReturns(M2005.5min.xts)
+M2005.5min_RV=rCov(M2005.5min.xts,makeReturns=T)      #计算RV（这个RV=sum(r^2))
+
+setwd("C:/Users/62678/Desktop") 
+M2005.d=read.csv("M2005.d.csv")
+require("xts")
+M2005.d.zoo=read.zoo("M2005.d.csv",header=TRUE,sep=",")
+M2005.d.xts=as.xts(M2005.d.zoo)  #得到时间序列
+M2005.r<-diff(log(M2005.d.xts))   #计算日收益率
+M2005.r[1]=0
+
+setwd("C:/Users/62678/Desktop") 
+r_g=read.csv("r_g.csv")
+require("xts")
+r_g.zoo=read.zoo("r_g.csv",header=TRUE,sep=",")
+r_g.xts=as.xts(r_g.zoo)  #得到时间序列
+
+setwd("C:/Users/62678/Desktop") 
+M2005.d=read.csv("M2005.d.csv")
+RVn=as.numeric(M2005.5min_RV)
+M2005.d$close=RVn
+library(highfrequency)
+RV=as.data.frame(M2005.d) 
+View(RV)
+d1=as.Date(RV[,1])            #将第一列转为date数据类型
+d2=as.numeric(RV[,2])
+gm=RV[,2,drop=FALSE]  
+View(gm)
+rownames(gm)=d1 
+library(xts)
+RV=as.xts(gm)
+
+RV2=RV+(r_g$r_g)^2     #得到改进的RV2
+RV2n=RV2
+
+library(timeSeries)
+plot(RV)      #画RV的时序图,看是否有集群现象
+
+         
+qqnorm(RV)
+qqline(RV)     #QQ图
+plot(density(RV),col="blue")   #核密度图
+
+library(fBasics)
+basicStats(M2005.5min_RV)   #峰度
+
+adf.test(RV)         #ADF检验RV平稳性
+for(i in 1:6){
+print(Box.test(RV,type="Ljung-Box",lag=i))
+}	 #检验RV是否为白噪声
+
+#（6）建立HAR模型
+real.RV2=RV2[147:218]
+for(i in 1:72) {
+data_temp <- RV2[(i):(145+i)]                 #i到145+i 总是146个数
+HARRV<-harModel(data=data_temp,periods=c(1,5,22),RVest=c("rCov"),type="HARRV",h=1)      #模型拟合 
+forc=predict(HARRV)   #向前一阶预测         
+RV2n[146+i]=forc[1]}
+
+forest.RV2=RV2n[147:218]  #得出预测的序列
+library(tseries)
+plot(as.ts(forest.RV2),type="l",col="red",main="HAR-RV2",xlab="Time",ylab="RV2",lwd=2)
+lines(as.ts(real.RV2),type="l",col="black",lwd=2)
+legend("topright",legend=c("forest.RV2","real.RV2"),col=c("red","black"),lty=1,lwd=2) 
+
+MSE=mean((real.RV2-forest.RV2)^2)
+MAE=mean(abs(real.RV2-forest.RV2))
+RMSE=sqrt(MSE)
+MAPE=mean(abs((forest.RV2-real.RV2)/real.RV2))*100
+SMAPE=mean(abs(forest.RV2-real.RV2)/(abs(forest.RV2)+abs(real.RV2)/2))*100
+HMSE=mean((1-forest.RV2/real.RV2)^2)
+HMAE=mean(abs(1-forest.RV2/real.RV2))
+QLIKE=mean(log(forest.RV2)+real.RV2/forest.RV2)
+RLOG=mean((log(real.RV2/forest.RV2))^2)
+MSE
+MAE
+RMSE
+MAPE
+SMAPE
+HMSE
+HMAE
+QLIKE
+RLOG
